@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>小兔子互动场景</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Comic Sans MS", cursive;
+      background: linear-gradient(#b3ecff, #ffffff);
+    }
+    .container {
+      display: flex;
+      flex-direction: row;
+      max-width: 1000px;
+      margin: 30px auto;
+      padding: 20px;
+      background-color: #ffffffee;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .left, .right {
+      flex: 1;
+      padding: 20px;
+    }
+    video {
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .prompt {
+      font-size: 20px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .btn {
+      background-color: #6495ED;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .btn:hover {
+      background-color: #4169E1;
+    }
+    .success-section {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      height: 100vh;
+      background: linear-gradient(to bottom, #87CEFA, #ffffff);
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1000;
+    }
+    .success-section h1 {
+      font-size: 32px;
+      color: #2e8b57;
+      margin-bottom: 20px;
+    }
+
+    /* 撒花动画 */
+    .confetti {
+      position: absolute;
+      top: -10px;
+      width: 10px;
+      height: 10px;
+      background: red;
+      border-radius: 50%;
+      animation: fall 3s linear infinite;
+    }
+    @keyframes fall {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="left">
+    <video id="bunnyVideo" autoplay playsinline controls></video>
+  </div>
+  <div class="right">
+    <div class="prompt" id="bunnyResponse">小兔子来了，等一下要说出你的邀请哦~</div>
+    <button id="startSpeech" class="btn" style="display: none;">🗣️ 开始说话</button>
+  </div>
+</div>
+
+<!-- 成功通关页面 -->
+<div class="success-section" id="successSection">
+  <h1>🎉 太棒了，通关成功！</h1>
+  <video id="successVideo" autoplay playsinline controls></video>
+</div>
+
+<script>
+  const videoEl = document.getElementById('bunnyVideo');
+  const responseEl = document.getElementById('bunnyResponse');
+  const retryBtn = document.getElementById('startSpeech');
+  const successSection = document.getElementById('successSection');
+  const successVideo = document.getElementById('successVideo');
+
+  // 确保视频有声音播放
+  videoEl.muted = false;
+  successVideo.muted = false;
+
+  let currentStep = 0;
+
+  const videos = {
+    intro: "我是小兔子，我们一起玩吧！.mp4",
+    encourage: "宝贝，勇敢的邀请我呀，这样我们就能一起玩了.mp4",
+    success: "success.mp4" // 等你上传
+  };
+
+  function playIntro() {
+    currentStep = 1;
+    videoEl.src = videos.intro;
+    responseEl.textContent = "小兔子来了，等一下要说出你的邀请哦~";
+    videoEl.play();
+  }
+
+  function playEncouragement() {
+    currentStep = 2;
+    videoEl.src = videos.encourage;
+    videoEl.play();
+    responseEl.textContent = "小兔子没听清，再试试说：“一起玩”或者“我想玩”吧～";
+    retryBtn.style.display = "inline-block";
+  }
+
+  function playSuccess() {
+    currentStep = 3;
+    successVideo.src = videos.success;
+    successSection.style.display = "flex";
+    successVideo.play();
+    launchConfetti();
+  }
+
+  function startRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("请使用 Chrome 浏览器进行语音互动");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'zh-CN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    responseEl.textContent = "🎤 请说出：“一起玩”或者“我想玩”";
+    retryBtn.style.display = "none";
+    recognition.start();
+
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript.trim();
+      console.log("识别内容：", text);
+      if (/一起玩|我想玩|和我玩|好的/i.test(text)) {
+        playSuccess();
+      } else {
+        playEncouragement();
+      }
+    };
+
+    recognition.onerror = () => {
+      playEncouragement();
+    };
+  }
+
+  videoEl.onended = () => {
+    if (currentStep === 1) {
+      retryBtn.style.display = "inline-block";
+      responseEl.textContent = "🗣️ 请点击按钮并说：“一起玩”或“我想玩”";
+    }
+  };
+
+  retryBtn.onclick = () => {
+    startRecognition();
+  };
+
+  window.onload = playIntro;
+
+  // 生成撒花动画
+  function launchConfetti() {
+    for (let i = 0; i < 100; i++) {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = Math.random() * 100 + 'vw';
+      confetti.style.background = `hsl(${Math.random() * 360}, 70%, 60%)`;
+      confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+      document.body.appendChild(confetti);
+
+      // 自动清理
+      setTimeout(() => confetti.remove(), 4000);
+    }
+  }
+</script>
+
+</body>
+</html>
